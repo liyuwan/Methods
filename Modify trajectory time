@@ -1,0 +1,22 @@
+#修改轨迹时间
+import MDAnalysis as mda
+
+# 读取轨迹文件
+u = mda.Universe('nowater11.xtc')
+
+# 获取轨迹的时间步长
+dt = u.trajectory.dt
+
+# 获取每一帧的时间，并添加起始时间偏移
+start_time_offset = 2889280 # 起始时间偏移量，单位为ps
+frame_times = [(frame * dt) + start_time_offset for frame in range(len(u.trajectory))]
+
+# 打印原始时间和修改后的时间，以确认更改成功
+print("Original frame times:", [frame * dt for frame in range(len(u.trajectory))])
+print("New frame times:", frame_times)
+
+# 将修改后的轨迹保存为新的文件
+with mda.Writer('nowater11-11.xtc', u.atoms.n_atoms) as W:
+    for ts, time in zip(u.trajectory, frame_times):
+        ts.time = time  # 更新时间信息
+        W.write(u.atoms)
