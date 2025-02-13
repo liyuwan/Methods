@@ -1,0 +1,99 @@
+#一条淀粉链上的氢键，并排除相邻的两个葡萄糖
+import MDAnalysis as mda
+import numpy as np
+
+def calculate_number(xtc_file, gro_file, index_file1, index_file2, Hydrogen_distance, time_start, time_end):
+    # 读取.xtc和.gro文件
+    u = mda.Universe(gro_file, xtc_file, topology_format="GRO", format="XTC")
+
+    # 读取索引文件并调整为零基
+    def load_indices(index_file):
+        with open(index_file, 'r') as f:
+            lines = f.readlines()
+        indices = [int(idx) - 1 for line in lines[1:] for idx in line.split()]
+        return indices
+
+    atoms1_indices = load_indices(index_file1)
+    atoms2_indices = load_indices(index_file2)
+
+    # 提取原子组
+    atoms1 = u.atoms[atoms1_indices]
+    atoms2 = u.atoms[atoms2_indices]
+
+    results = []
+    for ts in u.trajectory:
+        if time_start <= ts.time <= time_end:
+            # 提取原子坐标
+            coords1 = atoms1.positions
+            coords2 = atoms2.positions
+
+            # 计算两组原子间的距离（利用广播）
+            deltas = coords2[:, np.newaxis, :] - coords1[np.newaxis, :, :]
+            squared_distances = np.sum(deltas**2, axis=2)
+
+            # 筛选满足条件的距离
+            within_distance = (squared_distances > 0) & (squared_distances <= Hydrogen_distance**2)
+            matched_pairs = np.argwhere(within_distance)
+
+            # 保存结果
+            for pair in matched_pairs:
+                results.append((ts.time, pair[1], pair[0]))  # 交换顺序使原子组1在前
+    return results
+
+def write_to_file(file_path, data):
+    with open(file_path, 'w') as f:
+        for item in data:
+            f.write(f"{item[0]}, {item[1]}, {item[2]}\n")
+
+def process_h_bonds(input_file):
+    """
+    处理氢键数据文件，根据指定规则过滤并计算差值。
+
+    参数:
+        input_file (str): 输入文件路径。
+        output_file (str): 输出文件路径。
+    """
+    # 读取文件并处理
+    with open(input_file, 'r') as infile:
+        lines = infile.readlines()
+
+    # 存储结果
+    results = []
+
+    for line in lines:
+        # 将每行按逗号分隔并转换为浮点数和整数
+        values_str = line.strip().split(', ')
+        values = [float(values_str[0]), int(values_str[1]), int(values_str[2])]
+        first_col = values[0]
+        abs_diff = abs(values[1] - values[2])
+        if abs_diff > 3:
+            results.append(f"{first_col}, {abs_diff}\n")
+
+    return results
+
+# 计数函数
+def count_items(result_data):
+    return len(result_data)
+
+if __name__ == "__main__":
+    xtc_file_path = "/content/outputlast200.xtc"
+    gro_file_path = "/content/out.gro"
+    Hydrogen_distence = 5  #纳米
+
+    for i in range(1, 2):
+        index_file_path1 = f"/content/index{i}AMY-T1.ndx"
+        index_file_path2 = f"/content/index{i}AMY-T1.ndx"
+        print(f"Processing: i={i}")
+        print(f"Index files: {index_file_path1}, {index_file_path2}")
+
+        output_file_path_whole = "/content/H-Bonds.txt"
+        result_whole = calculate_number(xtc_file_path, gro_file_path, index_file_path1, index_file_path2,
+                                        Hydrogen_distence, time_start=0, time_end=1000000)
+
+        write_to_file(output_file_path_whole, result_whole)
+        result = process_h_bonds(output_file_path_whole)
+        item_count = count_items(result)
+        print(f"Count: {item_count}")
+
+# 提示任务完成
+print("数据处理完成，已保存到目标文件。")
