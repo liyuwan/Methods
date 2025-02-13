@@ -1,0 +1,52 @@
+#计数每个原子对的氢键持续时间
+def read_matrix_from_file(file_path):
+    matrix = []
+
+    with open(file_path, 'r') as file:
+        for line in file:
+            row = [int(num.strip()) for num in line.split(',')]
+            matrix.append(row)
+    return matrix
+
+# 统计
+def count_consecutive_Hbond(matrix):
+    max_consecutive_ones = 1  # 假设最大连续的H个数
+    consecutive_ones = 1
+    pair_num = 1
+    result = []
+    for i in range(1, len(matrix), 1):
+      pair1 = matrix[i-1][1]
+      pair2 = matrix[i][1]
+      time1 = matrix[i-1][0]
+      time2 = matrix[i][0]
+      if pair1 == pair2:
+        if time2 - time1 <= 20 * max_consecutive_ones:
+          consecutive_ones += 1
+        else:
+          #result.append((pair1, pair_num, consecutive_ones))
+          result.append(consecutive_ones)
+          consecutive_ones = 1
+          pair_num += 1
+      else:
+        #result.append((pair1, pair_num, consecutive_ones))
+        result.append(consecutive_ones)
+        consecutive_ones = 1
+        pair_num += 1
+    return result
+
+def write_to_file(data, file_path):
+    with open(file_path, 'w') as f:
+        for item in data:
+            #f.write("%d, %d, %d\n" % item)
+            f.write("%d\n" % item)
+
+def main():
+    file_path = "/content/Queue-H-Bonds-index1T1-index2T1.txt"
+    output_file = "/content/Num-H-Bonds-index1T1-index2T1.txt"
+    matrix = read_matrix_from_file(file_path)
+    count = count_consecutive_Hbond(matrix)
+    write_to_file(count, output_file)
+    print(f"结果已保存到 {output_file}")
+
+if __name__ == "__main__":
+    main()
