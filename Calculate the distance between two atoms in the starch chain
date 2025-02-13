@@ -1,0 +1,72 @@
+#计算淀粉链俩原子之间的距离
+import MDAnalysis as mda
+import numpy as np
+
+def calculate_Water_number(xtc_file, gro_file, index_file1, index_file2, Hydrogen_distence, time_start, time_end):
+    # 读取.xtc和.gro文件
+    u = mda.Universe(gro_file, xtc_file, topology_format="GRO", format="XTC")
+
+    # 使用索引文件amylose选择原子
+    with open(index_file1, 'r') as f:
+      lines1 = f.readlines()
+    atom_indices1 = []
+    for line in lines1[1:]:
+      atom_indices1.extend([int(idx) for idx in line.split()])
+    atoms1_indicest_minus_1 = [x - 1 for x in atom_indices1]
+    atoms1 = u.atoms[atoms1_indicest_minus_1]
+    num1 = len(atoms1_indicest_minus_1)
+
+   # 使用索引文件选择原子
+    with open(index_file2, 'r') as f:
+      lines2 = f.readlines()
+    atom_indices2 = []
+    for line in lines2[1:]:
+      atom_indices2.extend([int(idx) for idx in line.split()])
+    atoms2_indicest_minus_1 = [x - 1 for x in atom_indices2]
+    atoms2 = u.atoms[atoms2_indicest_minus_1]
+    num2 = len(atoms2_indicest_minus_1)
+
+    squared_distances = []
+    count_within_distance = 0
+    result_data = []
+
+    for ts in u.trajectory:
+      if time_start <= ts.time <= time_end:
+        coordinates1 = atoms1.positions
+        coordinates2 = atoms2.positions
+        for i in range(num1):
+          for j in range(num2):
+            x_diff = abs(coordinates2[j][0] - coordinates1[i][0])  # X 方向上的差值
+            if (x_diff<= Hydrogen_distence):
+              y_diff = abs(coordinates2[j][1] - coordinates1[i][1]) # Y 方向上的差值
+              if (y_diff<= Hydrogen_distence):
+                 z_diff = abs(coordinates2[j][2] - coordinates1[i][2]) # Z 方向上的差值
+                 if (z_diff<= Hydrogen_distence):
+                  end_to_end_vector = coordinates2[j] - coordinates1[i]
+                  length = np.linalg.norm(end_to_end_vector)
+                  if 0 < length <= Hydrogen_distence:
+                    count_within_distance += 1
+                    result_data.append((ts.time, i, j))
+    return result_data
+
+
+def write_to_file(file_path, data):
+    with open(file_path, 'w') as f:
+       for item in data:
+             f.write("%d, %d, %d\n" % item)
+
+if __name__ == "__main__":
+    xtc_file_path = "/content/outputlast200.xtc"
+    gro_file_path = "/content/out.gro"
+    index_file_path1 = "/content/index3AMY-R3.ndx"
+    index_file_path2 = "/content/index12AMY-R3.ndx"
+    output_file_path_whole = "/content/H-Bonds.txt"
+    Hydrogen_distence = 5.75   #纳米
+
+    result_whole = calculate_Water_number(xtc_file_path, gro_file_path, index_file_path1, index_file_path2, Hydrogen_distence, time_start=800000, time_end=1000000)
+
+    # 将结果写入文件
+    write_to_file(output_file_path_whole, result_whole)
+
+# 提示任务完成
+print("数据处理完成，已保存到目标文件。")
