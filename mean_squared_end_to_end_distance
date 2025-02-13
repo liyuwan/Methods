@@ -1,0 +1,43 @@
+#####calculate_mean_squared_end_to_end_distance
+import numpy as np
+import MDAnalysis as mda
+
+def calculate_mean_squared_end_to_end_distance(trajectory_file, gro_file, time_start, time_end):
+    u = mda.Universe(gro_file, trajectory_file)
+
+    # Select all atoms in the system
+    atoms = u.select_atoms('all')
+    squared_distances = []
+    # Check the time range of the trajectory
+    trajectory_times = []
+    for ts in u.trajectory:
+        trajectory_times.append(ts.time)
+        if ts.time >= time_start and ts.time <= time_end:
+            #print(f"Processing frame at time: {ts.time}")  # Debug: Check the time of each frame
+            # Get the coordinates of the selected atoms
+            coordinates = atoms.positions
+            # Calculate end-to-end vector
+            end_to_end_vector = coordinates[-1] / 10 - coordinates[0] / 10
+            # Calculate squared end-to-end distance
+            squared_distance = np.dot(end_to_end_vector, end_to_end_vector)
+            squared_distances.append(squared_distance)
+
+    # Print the trajectory time range for debugging
+    print(f"Trajectory time range: {min(trajectory_times)} to {max(trajectory_times)}")  # Debug: Check the time range of the trajectory
+
+    # Calculate the mean squared end-to-end distance
+    if len(squared_distances) > 0:
+        mean_squared_distance = np.mean(squared_distances)
+    else:
+        mean_squared_distance = 0
+
+    return mean_squared_distance
+
+# Example usage:
+trajectory_file = 'nowater.xtc'
+gro_file = 'conf2.gro'
+time_start = 50000
+time_end = 800000
+
+result = calculate_mean_squared_end_to_end_distance(trajectory_file, gro_file, time_start, time_end)
+print("Mean squared end-to-end distance <R2(ee)>:", result)
