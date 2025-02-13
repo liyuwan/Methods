@@ -1,0 +1,47 @@
+#Length ACF
+from __future__ import division
+import numpy as np
+import MDAnalysis as mdana
+
+def calculate_acf(trajectory_file, gro_file, output_file, index_file, nframe=50001, dt=0.02):
+    u = mdana.Universe(gro_file, trajectory_file)
+
+    # Initialize arrays to store end-to-end vector lengths
+    Vee_lengths = []
+    with open(index_file, 'r') as f:
+        lines = f.readlines()
+    atom_indices = [int(idx) for idx in lines[1].split()]
+    atoms1_indicest_minus_1 = [x - 1 for x in atom_indices]
+    selected_atoms = u.atoms[atoms1_indicest_minus_1]
+
+    for i in range(nframe):
+        frame = u.trajectory[i]
+        positions = selected_atoms.positions
+        Vee = positions[-1] - positions[0]
+        Vee_length = np.linalg.norm(Vee)  # Calculate the length of the end-to-end vector
+        Vee_lengths.append(Vee_length)
+
+    # Calculate autocorrelation function
+    acfs, num = [0] * nframe, [0] * nframe
+
+    for i in range(nframe):
+        for j in range(i, min(i + nframe, nframe)):
+            bin = j - i
+            acf = (Vee_lengths[i] * Vee_lengths[j])/ (Vee_lengths[i] * Vee_lengths[i])  # Use lengths instead of vectors
+            acfs[bin] = acfs[bin] + acf
+            num[bin] += 1
+
+    # Write results to output file
+    with open(output_file, 'w') as fout:
+        for i in range(len(acfs)):
+            if num[i] != 0:
+                acfs[i] = acfs[i] / num[i]
+                fout.write(f"{i * dt} {acfs[i]}\n")
+
+if __name__ == "__main__":
+    trajectory_file = 'amy.xtc'  # Replace with your trajectory file
+    gro_file = 'conf2.gro'          # Replace with your coordinate file
+    output_file = '36-1-amyL.txt'
+    index_file = "untitled"
+
+    calculate_acf(trajectory_file, gro_file, output_file, index_file)
