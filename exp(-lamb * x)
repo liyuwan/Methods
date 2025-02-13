@@ -1,0 +1,84 @@
+## 求氢键的寿命，拟合函数exp(-lamb * x)
+import numpy as np
+from scipy.optimize import curve_fit
+from sklearn.metrics import r2_score
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+
+# Load data from the file
+data = np.loadtxt('in.txt')
+
+# Split the data into x_data and P_data
+x_data = data[:, 0]
+P_data = data[:, 1]
+
+# 定义指数分布函数
+def exponential_distribution(x, lamb):
+    return np.exp(-lamb * x)
+
+# 计算生存函数的均值
+def mean_of_exponential_distribution(lamb):
+    # 定义被积函数
+    integrand = lambda x: exponential_distribution(x, lamb)
+    # 进行数值积分
+    mean, _ = quad(integrand, 0, np.inf)
+    return mean
+
+def fit_exponential(x_data, P_data, initial_guess):
+    # 使用curve_fit进行拟合
+    params, covariance = curve_fit(exponential_distribution, x_data, P_data, p0=initial_guess)
+
+    # 拟合的参数
+    lamb = params[0]
+
+    # 计算R-squared
+    y_predicted = exponential_distribution(x_data, lamb)
+    r_squared = r2_score(P_data, y_predicted)
+
+    return lamb, r_squared
+
+# 初始猜测参数
+initial_guess = [1]
+current_r_squared = 0
+threshold = 0.95  # 设定R-squared阈值
+max_iterations = 100  # 最大迭代次数
+iteration = 0
+
+# 迭代拟合过程
+while current_r_squared < threshold and iteration < max_iterations:
+    lamb, r_squared = fit_exponential(x_data, P_data, initial_guess)
+    print(f"Iteration {iteration + 1}: lambda = {lamb:.4f}, R-squared = {r_squared:.4f}")
+
+    # 更新当前的R-squared和迭代次数
+    current_r_squared = r_squared
+    iteration += 1
+
+    # 更新初始猜测参数，例如可以使用上一次拟合得到的lambda值
+    initial_guess = [lamb]
+
+print("Final fitted lambda:", lamb)
+
+# 生成拟合曲线的x和y值
+x_fit = np.linspace(min(x_data), max(x_data), 100)
+y_fit = exponential_distribution(x_fit, lamb)
+
+# 保存拟合曲线的x和y值到文件
+fit_data = np.column_stack((x_fit, y_fit))
+np.savetxt('fit.txt', fit_data, header='x y', fmt='%f', delimiter='\t')
+
+# 计算R-squared
+y_predicted = exponential_distribution(x_data, lamb)
+r_squared = r2_score(P_data, y_predicted)
+
+# 计算指数分布的平均值
+mean = mean_of_exponential_distribution(lamb)
+print("Exponential Distribution Mean (Average):", mean)
+
+# 绘制原始数据和拟合曲线
+plt.plot(x_data, P_data, 'bo', label='Original Data')
+plt.plot(x_fit, y_fit, 'r-', label='Fitted Curve')
+plt.legend()
+plt.xlabel('x')
+plt.ylabel('Probability')
+plt.title(f'Fitting Exponential Distribution (R-squared: {r_squared:.4f})')
+plt.show()
